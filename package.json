@@ -1,0 +1,9 @@
+{
+  "name": "nes-programming-in-rust-sydney-rust-meetup-2023-03-01",
+  "version": "1.0.0",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@marp-team/marp-cli": "^2.4.0"
+  }
+}
