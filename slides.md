@@ -56,9 +56,10 @@ file.write_all(&data).expect("Failed to write ROM file");
 
 ---
 
-# Usage
+# Character ROM
 
-Character ROM
+![bg right:60% 80%](bbhas.png)
+
 ```rust
 ...
 // 24: A
@@ -72,7 +73,7 @@ Character ROM
 ...
 ```
 ---
-# Usage
+# Program ROM: Block
 
 ```rust
 use mos6502_assembler::Block;
@@ -81,7 +82,78 @@ fn prg_rom() -> Vec<u8> {
     // A Block is an intermediate representation that keeps track of labels
     // and a cursor so you can put code/data at specific addresses.
     let mut b = Block::new();
-    // describe program
+
+    ...
+}
+```
+---
+
+# ROM info from fceux NES emulator
+
+![bg left:30% 90%](bbhas-cover.png)
+
+```
+Loading Sesame Street - Big Bird's Hide & Speak (USA).nes...
+
+ PRG ROM: 16 x 16KiB = 256 KiB
+ CHR ROM: 16 x  8KiB = 128 KiB
+ ROM CRC32: 0xfde1c7ed
+ ROM MD5:  0xe11377293fff45358d99aee90f98cbd6
+ Mapper #: 1
+ Mapper name: MMC1
+ Mirroring: Horizontal
+ Battery-backed: No
+ Trained: No
+```
+
+---
+# Program ROM: Block
+
+```rust
+use mos6502_assembler::Block;
+
+fn prg_rom() -> Vec<u8> {
+    // A Block is an intermediate representation that keeps track of labels
+    // and a cursor so you can put code/data at specific addresses.
+    let mut b = Block::new();
+
+    ...
+}
+```
+
+---
+# Program ROM: Code/Data in EDSL
+
+```rust
+use mos6502_assembler::Block;
+
+fn prg_rom() -> Vec<u8> {
+    // A Block is an intermediate representation that keeps track of labels
+    // and a cursor so you can put code/data at specific addresses.
+    let mut b = Block::new();
+
+    // describe program with EDSL
+    b.inst(...);
+    b.label(...);
+    b.literal_byte(...);
+    // ...etc
+
+    ...
+}
+```
+
+---
+# Program ROM: Assemble
+
+```rust
+use mos6502_assembler::Block;
+
+fn prg_rom() -> Vec<u8> {
+    // A Block is an intermediate representation that keeps track of labels
+    // and a cursor so you can put code/data at specific addresses.
+    let mut b = Block::new();
+
+    // describe program with EDSL
     b.inst(...);
     b.label(...);
     b.literal_byte(...);
@@ -95,6 +167,9 @@ fn prg_rom() -> Vec<u8> {
     prg_rom
 }
 ```
+
+
+
 ---
 # 6502 Assembler Rust EDSL
 
@@ -231,4 +306,12 @@ pub mod inc {
 pub use inc::Inst as Inc;
 ```
 
+---
 
+# More NES Shenanigans at [gridbugs.org/tags/#nes](https://www.gridbugs.org/tags/#nes)
+![bg right:30% 90%](mario.png)
+
+- Reverse-Engineering NES Tetris to add Hard Drop
+- Conway's Game of Life on the NES in Rust
+- Zelda Screen Transitions are Undefined Behaviour
+- NES Emulator Debugging
