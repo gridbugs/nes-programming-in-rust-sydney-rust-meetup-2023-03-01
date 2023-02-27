@@ -36,7 +36,7 @@ twitch.tv/gridbugs
 # Usage
 ```bash
 cargo run -- -o playground.nes  # generate ROM file
-fcoux playground.nes            # run ROM in NES emulator
+fceux playground.nes            # run ROM in NES emulator
 ```
 ---
 # Usage
