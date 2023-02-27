@@ -29,6 +29,10 @@ twitch.tv/gridbugs
 ![bg 80%](github.png)
 
 ---
+
+![bg 80%](github-rust.png)
+
+---
 # Usage
 ```bash
 cargo run -- -o playground.nes  # generate ROM file
@@ -308,7 +312,108 @@ pub use inc::Inst as Inc;
 
 ---
 
-# More NES Shenanigans at [gridbugs.org/tags/#nes](https://www.gridbugs.org/tags/#nes)
+# Addressing Mode Ergonomics
+
+```rust
+// immediate argument (1 byte)
+b.inst(Lda(Immediate), 1);
+
+// implied argument
+b.inst(Lsr(Accumulator), ());
+
+// address argument via string label
+b.inst(Jsr(Absolute), "set_cursor_to_tile_coord");
+
+// address argument literal
+b.inst(Bit(Absolute), Addr(0x2002));
+
+// relative offset via label (single byte so destination must be within +/- 127 bytes)
+b.inst(Beq, LabelRelativeOffset("end_set_tile_offset"));
+```
+
+---
+
+### Addressing Mode Ergonomics
+
+```rust
+pub trait ArgOperand {
+    type Operand: operand::Trait;
+    fn program(self, block: &mut Block);
+}
+
+impl ArgOperand for u8 {
+    type Operand = operand::Byte;
+    fn program(self, block: &mut Block) { ... }
+}
+
+impl ArgOperand for () {
+    type Operand = operand::None;
+    fn program(self, _block: &mut Block) {}
+}
+
+impl ArgOperand for &'static str {
+    type Operand = operand::Address;
+    fn program(self, block: &mut Block) { ... }
+}
+
+pub struct Addr(pub Address);
+impl ArgOperand for Addr {
+    type Operand = operand::Address;
+    fn program(self, block: &mut Block) { ... }
+}
+
+pub struct LabelRelativeOffset(pub &'static str);
+impl ArgOperand for LabelRelativeOffset {
+    type Operand = operand::Byte;
+    fn program(self, block: &mut Block) { ... }
+}
+
+```
+
+
+---
+
+### Real Example: Reading the controller button states
+
+```rust
+b.label("copy_controller_state_to_zp");
+const CONTROLLER_REG: Addr = Addr(0x4016);
+
+// copy the current controller state
+b.inst(Lda(ZeroPage), var::controller::CURR);
+b.inst(Sta(ZeroPage), var::controller::PREV);
+
+// toggle the controller strobe bit to copy its current value into shift register
+b.inst(Lda(Immediate), 1);
+b.inst(Sta(Absolute), CONTROLLER_REG); // set controller strobe
+b.inst(Sta(ZeroPage), var::controller::CURR); // store a 1 at destination
+b.inst(Lsr(Accumulator), ()); // clear accumulator
+b.inst(Sta(Absolute), CONTROLLER_REG); // clear controller strobe
+                                       // shift each of the 8 bits of controller state from the shift register into address 0
+b.label("copy_controller_state_to_zp_loop");
+b.inst(Lda(Absolute), CONTROLLER_REG); // load single bit into LBS of acculumator
+b.inst(Lsr(Accumulator), ()); // shift bit into carry flag
+b.inst(Rol(ZeroPage), var::controller::CURR); // shift carry flag into 0, and MSB of 0 into carry flag
+
+// if that set the carry flag, this was the 8th iteration
+b.inst(Bcc, LabelRelativeOffset("copy_controller_state_to_zp_loop"));
+
+b.inst(Lda(ZeroPage), var::controller::PREV);
+b.inst(Eor(Immediate), 0xFF);
+b.inst(And(ZeroPage), var::controller::CURR);
+b.inst(Sta(ZeroPage), var::controller::PRESS_DELTA);
+
+b.inst(Lda(ZeroPage), var::controller::CURR);
+b.inst(Eor(Immediate), 0xFF);
+b.inst(And(ZeroPage), var::controller::PREV);
+b.inst(Sta(ZeroPage), var::controller::RELEASE_DELTA);
+
+b.inst(Rts, ());
+```
+
+---
+
+# More NES shenanigans at [gridbugs.org/tags/#nes](https://www.gridbugs.org/tags/#nes)
 ![bg right:30% 90%](mario.png)
 
 - Reverse-Engineering NES Tetris to add Hard Drop
