@@ -29,6 +29,73 @@ twitch.tv/gridbugs
 ![bg 80%](github.png)
 
 ---
+# Usage
+```bash
+cargo run -- -o playground.nes  # generate ROM file
+fcoux playground.nes            # run ROM in NES emulator
+```
+---
+# Usage
+
+```rust
+use std::io::Write;
+use ines::{Ines, Header};
+
+let ines = Ines {
+    header: Header { ... },
+    chr_rom: chr_rom(), // tiles and sprites
+    prg_rom: prg_rom(), // code and static data
+};
+
+let mut data = Vec::new();
+ines.encode(&mut data);
+
+let mut file = std::fs::File::create(output_path).unwrap();
+file.write_all(&data).expect("Failed to write ROM file");
+```
+
+---
+
+# Usage
+
+Character ROM
+```rust
+...
+// 24: A
+0b00111100,
+0b01100110,
+0b01100110,
+0b01111110,
+0b01100110,
+0b01100110,
+0b01100110,
+...
+```
+---
+# Usage
+
+```rust
+use mos6502_assembler::Block;
+
+fn prg_rom() -> Vec<u8> {
+    // A Block is an intermediate representation that keeps track of labels
+    // and a cursor so you can put code/data at specific addresses.
+    let mut b = Block::new();
+    // describe program
+    b.inst(...);
+    b.label(...);
+    b.literal_byte(...);
+    // ...etc
+
+    // convert from intermediate representation to byte array
+    // (this pass is needed to resolve labels)
+    let mut prg_rom = Vec::new();
+    b.assemble(/* start address */ 0x8000, /* ROM bank size */ 0x4000, &mut prg_rom)
+        .expect("Failed to assemble");
+    prg_rom
+}
+```
+---
 # 6502 Assembler Rust EDSL
 
 Defining and calling a function with string labels:
@@ -128,32 +195,40 @@ b.inst(Inc(AbsoluteYIndexed), 0x0000);
 
 ```
 error[E0277]: the trait bound
-`AbsoluteYIndexed: instruction::dec::AddressingMode`
+`AbsoluteYIndexed: instruction::inc::AddressingMode`
 is not satisfied
 ```
 
 ---
+# 6502 Assembler Rust EDSL
 
-# Usage
+![bg right:30% 90%](inc.png)
 
+How addressing mode errors are caught at compile time:
 ```rust
-use mos6502_assembler::Block;
+pub mod inc {
+    pub trait AddressingMode: ReadData + WriteData { ... }
 
-fn prg_rom() -> Vec<u8> {
-    // A Block is an intermediate representation that keeps track of labels
-    // and a cursor so you can put code/data at specific addresses.
-    let mut b = Block::new();
-    // describe program
-    b.inst(...);
-    b.label(...);
-    b.literal_byte(...);
-    // ...etc
+    impl AddressingMode for Absolute { ... }
+    impl AddressingMode for AbsoluteXIndexed { ... }
+    impl AddressingMode for ZeroPage { ... }
+    impl AddressingMode for ZeroPageXIndexed { ... }
 
-    // convert from intermediate representation to byte array
-    // (this pass is needed to resolve labels)
-    let mut prg_rom = Vec::new();
-    b.assemble(/* start address */ 0x8000, /* ROM bank size */ 0x4000, &mut prg_rom)
-        .expect("Failed to assemble");
-    prg_rom
+    pub struct Inst<A: AddressingMode>(pub A);
+
+    pub fn interpret<A: AddressingMode, M: Memory>(
+        _: A, cpu: &mut Cpu, 
+        memory: &mut M,
+    ) -> u8 {
+        let data = A::read_data(cpu, memory).wrapping_add(1);
+        A::write_data(cpu, memory, data);
+        cpu.status.set_negative_from_value(data);
+        cpu.status.set_zero_from_value(data);
+        cpu.pc = cpu.pc.wrapping_add(A::instruction_bytes());
+        A::num_cycles()
+    }
 }
+pub use inc::Inst as Inc;
 ```
+
+
